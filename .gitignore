@@ -1,0 +1,52 @@
+### Build system ###
+# CMake
+/build/
+/out/
+/bin/
+/lib/
+/CMakeFiles/
+/cmake-build-*/
+/CMakeCache.txt
+/cmake_install.cmake
+/Makefile
+
+### IDE ###
+# Visual Studio
+/.vs/
+/*.sln
+/*.vcxproj*
+/*.vcxproj.user
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+*.xcuser*
+
+# Other IDEs
+.vscode/
+.idea/
+
+### Compiled files ###
+# Libraries
+*.a
+*.lib
+*.so
+*.dll
+*.dylib
+
+# Executables
+*.exe
+*.o
+*.obj
+
+### System ###
+*.DS_Store
+*.log
+
+### Development ###
+*~
+*.swp
+*.swo
+.cache/
+.venv/
+*.egg-info/
