@@ -348,6 +348,8 @@ namespace qm::latin_square {
         // 约简颜色域
         void simplify(SimplifyMethod method = SimplifyMethod::SIMPLE);
 
+        std::vector<std::vector<int>> getInitialSolution();
+
         // 颜色域中有多少个固定的值
         [[nodiscard]] int fixed_num() const;
 
@@ -359,16 +361,13 @@ namespace qm::latin_square {
 
 
         // 简化的约简规则：如果n-1个结点的并集大小为n-1，则剩余结点只能染剩下的那1种颜色。
-        bool applyReductionRulesSimply();
+        bool applyReductionRulesSimply(bool col_needed = true);
 
         // 尝试固定一个结点，并对同行同列的结点删除该颜色
-        void try_fix(int i, int j, int value);
+        void try_fix(int i, int j, int value, bool col_needed = true);
 
-        bool applyReductionRulesForRow(int row);
 
-        bool applyReductionRulesForColumn(int col);
-
-        bool propagateFixedValues();
+        bool propagateFixedValues(bool col_needed = true);
     };
 
 }  // namespace qm::latin_square

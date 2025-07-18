@@ -1,6 +1,7 @@
 //
 // Created by qiming on 25-7-17.
 //
+#include <unordered_set>
 #include "latin_square/ColorDomain.h"
 
 namespace qm::latin_square {
@@ -8,6 +9,7 @@ namespace qm::latin_square {
     // 对拉丁方颜色域进行化简
     // 约简规则一：同一行（列）内k个顶点所能使用的颜色的并集刚好是k种颜色，那么这k种颜色就不能被该行（列）内其他顶点所使用
     // 约简规则二：某k种颜色只有同一行内的k个顶点的颜色域含有，那么这k个顶点只能染这k种颜色
+    // 简化的规则：k = n - 1 / 1
     void ColorDomain::simplify(SimplifyMethod method) {
         bool changed = true;
         int iteration = 0;
@@ -29,14 +31,14 @@ namespace qm::latin_square {
 
 
     // 传播已固定值的约束
-    bool ColorDomain::propagateFixedValues() {
+    bool ColorDomain::propagateFixedValues(bool col_needed) {
         bool changed = false;
 
         for (int row = 0; row < n_; ++row) {
             for (int col = 0; col < n_; ++col) {
                 if (fixed(row, col) && !fixed_[row][col]) {
                     int fixed_value = domains_[row][col].getFirstElement();
-                    try_fix(row, col, fixed_value);
+                    try_fix(row, col, fixed_value, col_needed);
                     changed = true;
                 }
             }
@@ -57,7 +59,7 @@ namespace qm::latin_square {
         return count;
     }
 
-    bool ColorDomain::applyReductionRulesSimply() {
+    bool ColorDomain::applyReductionRulesSimply(bool col_needed) {
         bool changed = false;
         Domain<MAX_SET_SIZE> union_set(n_, InitMode::ALL_ZEROS);
         // 如果n-1个结点的并集大小为n-1，则剩余结点只能染剩下的那1种颜色。
@@ -79,43 +81,123 @@ namespace qm::latin_square {
                     // 剩余的集合的并集大小为n-1，则剩余结点只能染剩下的那1种颜色
                     auto value = complement.getFirstElement();
                     assert(domains_[row][i].contains(value));
-                    try_fix(row, i, value);
+                    try_fix(row, i, value, col_needed);
                     changed = true;
                 }
             }
         }
-        for (int col = 0; col < n_; ++col) {
-            for (int i = 0; i < n_; ++i) {
-                if (fixed(i, col)) {
-                    continue;
-                }
-                union_set.clear();
-                for (int r = 0; r < n_; ++r) {
-                    if (r != i) {
-                        union_set |= domains_[r][col];
+        if (col_needed) {
+            for (int col = 0; col < n_; ++col) {
+                for (int i = 0; i < n_; ++i) {
+                    if (fixed(i, col)) {
+                        continue;
                     }
-                }
-                auto completion = ~union_set;
-                if (completion.size == 1) {
-                    auto value = completion.getFirstElement();
-                    assert(domains_[i][col].contains(value));
-                    try_fix(i, col, value);
-                    changed = true;
+                    union_set.clear();
+                    for (int r = 0; r < n_; ++r) {
+                        if (r != i) {
+                            union_set |= domains_[r][col];
+                        }
+                    }
+                    auto completion = ~union_set;
+                    if (completion.size == 1) {
+                        auto value = completion.getFirstElement();
+                        assert(domains_[i][col].contains(value));
+                        try_fix(i, col, value);
+                        changed = true;
+                    }
                 }
             }
         }
         return changed;
+
+
     }
 
-    void ColorDomain::try_fix(int i, int j, int value) {
+    void ColorDomain::try_fix(int i, int j, int value, bool col_needed) {
         fixed_[i][j] = true;
         for (int col = 0; col < n_; col++) {
-            domains_[col][j].remove(value);
+            domains_[i][col].remove(value);
         }
-        for (int row = 0; row < n_; row++) {
-            domains_[i][row].remove(value);
+        if (col_needed) {
+            for (int row = 0; row < n_; row++) {
+                domains_[row][j].remove(value);
+            }
         }
         domains_[i][j].clear();
         domains_[i][j].insert(value);
+    }
+
+    // 获取初始解
+    std::vector<std::vector<int>> ColorDomain::getInitialSolution() {
+        simplify();
+        std::vector<std::vector<int>> solution(n_, std::vector<int>(n_, -1));
+        // 备份颜色域和固定值
+        auto domains_bk = domains_;
+        auto fixed_bk = fixed_;
+
+        while (fixed_num() < n_ * n_) {
+            // 对于每一行，尝试固定一个颜色
+            for (int i = 0; i < n_; ++i) {
+                int min_color_num = INT32_MAX;
+                int index = -1;
+                for (int j = 0; j < n_; ++j) {
+                    if (domains_[i][j].size > 1 && domains_[i][j].size < min_color_num) {
+                        min_color_num = domains_[i][j].size;
+                        index = j;
+                    }
+                }
+                if (index == -1) {
+                    continue;
+                }
+                int j = index;
+                // 尝试固定一个颜色
+                auto value_count = domains_[i][j].size;
+                if (value_count < 1) {
+                    throw std::runtime_error("No more values to fix.");
+                }
+                auto value = domains_[i][j].getIthElement(value_count - 1);
+                // 仅仅约简同行的颜色域
+                try_fix(i, j, value, false);
+                bool changed = true;
+
+                while (changed) {
+                    changed = false;
+                    // 处理已固定的单元格
+                    if (propagateFixedValues(false)) {
+                        changed = true;
+                    }
+
+                    // 对行和列应用约简规则(简化的)
+                    if (applyReductionRulesSimply(false)) {
+                        changed = true;
+                    }
+                }
+
+            }
+
+        }
+        for (int i = 0; i < n_; ++i) {
+            for (int j = 0; j < n_; ++j) {
+                if (fixed(i, j)) {
+                    solution[i][j] = domains_[i][j].getFirstElement();
+                }
+            }
+        }
+        // 检查结果中有没有行冲突
+        for (int i = 0; i < n_; ++i) {
+            std::unordered_set<int> row_set;
+            for (int j = 0; j < n_; ++j) {
+                if (solution[i][j] == -1) {
+                    throw std::runtime_error("未完全初始化");
+                }
+                if (row_set.contains(solution[i][j])) {
+                    throw std::runtime_error("行冲突");
+                }
+                row_set.insert(solution[i][j]);
+            }
+        }
+        domains_ = domains_bk;
+        fixed_ = fixed_bk;
+        return solution;
     }
 }
