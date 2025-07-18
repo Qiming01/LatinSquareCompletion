@@ -229,7 +229,7 @@ namespace qm::latin_square {
         [[nodiscard]] bool full() const { return size == capacity; }
 
         [[nodiscard]] int getSize() const {
-            return static_cast<int>(bits.count());
+            return size;
         }
 
         [[nodiscard]] int getCapacity() const { return capacity; }
@@ -319,7 +319,7 @@ namespace qm::latin_square {
             fixed_.resize(n);
             domains_.resize(n);
             for (int i = 0; i < n; ++i) {
-                fixed_[i].resize(n, false);
+                fixed_[i].resize(n, -1);
                 domains_[i].resize(n, domain);
             }
         }
@@ -351,13 +351,14 @@ namespace qm::latin_square {
         std::vector<std::vector<int>> getInitialSolution();
 
         // 颜色域中有多少个固定的值
-        [[nodiscard]] int fixed_num() const;
+        [[nodiscard]] int fixed_num() const { return fixed_num_; }
 
     private:
 
         int n_;
         std::vector<std::vector<Domain<MAX_SET_SIZE>>> domains_;
-        std::vector<std::vector<bool>> fixed_;
+        std::vector<std::vector<int>> fixed_;
+        int fixed_num_{0};
 
 
         // 简化的约简规则：如果n-1个结点的并集大小为n-1，则剩余结点只能染剩下的那1种颜色。

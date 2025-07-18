@@ -3,6 +3,7 @@
 //
 #include <unordered_set>
 #include "latin_square/ColorDomain.h"
+#include "utils/RandomGenerator.h"
 
 namespace qm::latin_square {
 
@@ -36,7 +37,7 @@ namespace qm::latin_square {
 
         for (int row = 0; row < n_; ++row) {
             for (int col = 0; col < n_; ++col) {
-                if (fixed(row, col) && !fixed_[row][col]) {
+                if (fixed(row, col) && fixed_[row][col] == -1) {
                     int fixed_value = domains_[row][col].getFirstElement();
                     try_fix(row, col, fixed_value, col_needed);
                     changed = true;
@@ -47,17 +48,6 @@ namespace qm::latin_square {
         return changed;
     }
 
-    int ColorDomain::fixed_num() const {
-        int count = 0;
-        for (int i = 0; i < n_; ++i) {
-            for (int j = 0; j < n_; ++j) {
-                if (fixed(i, j)) {
-                    ++count;
-                }
-            }
-        }
-        return count;
-    }
 
     bool ColorDomain::applyReductionRulesSimply(bool col_needed) {
         bool changed = false;
@@ -114,7 +104,7 @@ namespace qm::latin_square {
     }
 
     void ColorDomain::try_fix(int i, int j, int value, bool col_needed) {
-        fixed_[i][j] = true;
+        fixed_[i][j] = value;
         for (int col = 0; col < n_; col++) {
             domains_[i][col].remove(value);
         }
@@ -125,19 +115,23 @@ namespace qm::latin_square {
         }
         domains_[i][j].clear();
         domains_[i][j].insert(value);
+        ++fixed_num_;
     }
 
     // 获取初始解
     std::vector<std::vector<int>> ColorDomain::getInitialSolution() {
         simplify();
-        std::vector<std::vector<int>> solution(n_, std::vector<int>(n_, -1));
         // 备份颜色域和固定值
         auto domains_bk = domains_;
         auto fixed_bk = fixed_;
+        auto fixed_num_bk = fixed_num_;
+
+        std::vector<bool> row_all_fixed(n_, false);
 
         while (fixed_num() < n_ * n_) {
             // 对于每一行，尝试固定一个颜色
             for (int i = 0; i < n_; ++i) {
+                if (row_all_fixed[i]) continue;
                 int min_color_num = INT32_MAX;
                 int index = -1;
                 for (int j = 0; j < n_; ++j) {
@@ -147,6 +141,7 @@ namespace qm::latin_square {
                     }
                 }
                 if (index == -1) {
+                    row_all_fixed[i] = true;
                     continue;
                 }
                 int j = index;
@@ -155,7 +150,7 @@ namespace qm::latin_square {
                 if (value_count < 1) {
                     throw std::runtime_error("No more values to fix.");
                 }
-                auto value = domains_[i][j].getIthElement(value_count - 1);
+                auto value = domains_[i][j].getIthElement(randomInt(value_count));
                 // 仅仅约简同行的颜色域
                 try_fix(i, j, value, false);
                 bool changed = true;
@@ -174,15 +169,9 @@ namespace qm::latin_square {
                 }
 
             }
+        }
 
-        }
-        for (int i = 0; i < n_; ++i) {
-            for (int j = 0; j < n_; ++j) {
-                if (fixed(i, j)) {
-                    solution[i][j] = domains_[i][j].getFirstElement();
-                }
-            }
-        }
+        const auto &solution = fixed_;
         // 检查结果中有没有行冲突
         for (int i = 0; i < n_; ++i) {
             std::unordered_set<int> row_set;
@@ -193,11 +182,15 @@ namespace qm::latin_square {
                 if (row_set.contains(solution[i][j])) {
                     throw std::runtime_error("行冲突");
                 }
+                if (solution[i][j] >= n_ || solution[i][j] < 0) {
+                    throw std::runtime_error("不合法");
+                }
                 row_set.insert(solution[i][j]);
             }
         }
         domains_ = domains_bk;
-        fixed_ = fixed_bk;
-        return solution;
+        fixed_num_ = fixed_num_bk;
+        std::swap(fixed_bk, fixed_);
+        return fixed_bk;
     }
 }
