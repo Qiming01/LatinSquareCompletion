@@ -188,9 +188,33 @@ namespace qm::latin_square {
                 row_set.insert(solution[i][j]);
             }
         }
+        // 计算列冲突的个数
+        int col_conflict_num = 0;
+        for (int col = 0; col < n_; col++) {
+            std::unordered_set<int> col_set;
+            for (int row = 0; row < n_; row++) {
+                if (col_set.contains(solution[row][col])) {
+                    ++col_conflict_num;
+                }
+                col_set.insert(solution[row][col]);
+            }
+        }
+        std::clog << "row_conflict_num: " << col_conflict_num << std::endl;
         domains_ = domains_bk;
         fixed_num_ = fixed_num_bk;
         std::swap(fixed_bk, fixed_);
+        std::clog << "total: " << total_domain_size() << std::endl;
         return fixed_bk;
+    }
+
+    int ColorDomain::total_domain_size() const {
+        // 输出颜色域大小的总和
+        int total_color_domain_size_ = 0;
+        for (int i = 0; i < n_; ++i) {
+            for (int j = 0; j < n_; ++j) {
+                total_color_domain_size_ += domains_[i][j].size;
+            }
+        }
+        return total_color_domain_size_;
     }
 }

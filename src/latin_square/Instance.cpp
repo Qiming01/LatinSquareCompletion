@@ -7,16 +7,21 @@ namespace qm::latin_square {
         int n = 0;
         is >> n;
         instance.n_ = n;
-        instance.fixed_numbers_.clear();
-        for (Assignment a; is >> a.row >> a.col >> a.num;) {
-            instance.fixed_numbers_.push_back(a);
+
+        instance.fixed_.clear();
+        instance.fixed_.reserve(n * n);
+
+        int r, c, v;
+        while (is >> r >> c >> v) {
+            instance.fixed_.emplace_back(r, c, v);
         }
+
         return is;
     }
 
     std::ostream &operator<<(std::ostream &os, const Instance &instance) {
         os << instance.n_ << '\n';
-        for (const auto &a: instance.fixed_numbers_) {
+        for (const auto &a: instance.fixed_) {
             os << a.row << ' ' << a.col << ' ' << a.num << '\n';
         }
         return os;

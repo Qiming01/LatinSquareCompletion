@@ -19,9 +19,9 @@ namespace qm::latin_square {
     public:
         [[nodiscard]] int size() const { return n_; }
 
-        [[nodiscard]] const std::vector<Assignment> &get_fixed() const { return fixed_numbers_; }
+        [[nodiscard]] const std::vector<Assignment> &get_fixed() const { return fixed_; }
 
-        [[nodiscard]] const std::vector<Assignment> &fixed() const { return fixed_numbers_; }
+        [[nodiscard]] const std::vector<Assignment> &fixed() const { return fixed_; }
 
         friend std::istream &operator>>(std::istream &is, Instance &instance);
 
@@ -29,7 +29,7 @@ namespace qm::latin_square {
 
     private:
         int n_{0};
-        std::vector<Assignment> fixed_numbers_;
+        std::vector<Assignment> fixed_;
     };
 
 }

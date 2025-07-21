@@ -353,13 +353,14 @@ namespace qm::latin_square {
         // 颜色域中有多少个固定的值
         [[nodiscard]] int fixed_num() const { return fixed_num_; }
 
+        [[nodiscard]] int total_domain_size() const;
+
     private:
 
         int n_;
         std::vector<std::vector<Domain<MAX_SET_SIZE>>> domains_;
         std::vector<std::vector<int>> fixed_;
         int fixed_num_{0};
-
 
         // 简化的约简规则：如果n-1个结点的并集大小为n-1，则剩余结点只能染剩下的那1种颜色。
         bool applyReductionRulesSimply(bool col_needed = true);
