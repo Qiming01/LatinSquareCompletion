@@ -1,4 +1,4 @@
-### Build system ###
+### Build System ###
 # CMake
 /build/
 /out/
@@ -9,8 +9,86 @@
 /CMakeCache.txt
 /cmake_install.cmake
 /Makefile
+*.ninja
 
-### IDE ###
+# C/C++ Compiled Artifacts
+*.o
+*.obj
+*.out
+*.a
+*.so
+*.dll
+*.dylib
+*.lib
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.su
+*.idb
+*.ipdb
+*.iobj
+
+### Python ###
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Bytecode and cache
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+
+# Package and distribution
+*.egg-info/
+*.egg
+dist/
+build/
+pip-wheel-metadata/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+### Web Development ###
+# Dependencies
+node_modules/
+bower_components/
+jspm_packages/
+
+# Build artifacts
+/dist/
+/.next/
+/.nuxt/
+/.svelte-kit/
+/.astro/
+
+# Cache and logs
+.npm/
+.yarn/
+.yarnrc
+.pnpm-debug.log*
+.yarn-integrity
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Debug logs
+*.log
+logs/
+
+# IDE/Editor ###
 # Visual Studio
 /.vs/
 /*.sln
@@ -22,31 +100,20 @@
 *.xcworkspace
 *.xcuser*
 
-# Other IDEs
-.vscode/
+# JetBrains (CLion, PyCharm, etc.)
 .idea/
+*.iml
 
-### Compiled files ###
-# Libraries
-*.a
-*.lib
-*.so
-*.dll
-*.dylib
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
-# Executables
-*.exe
-*.o
-*.obj
-
-### System ###
-*.DS_Store
-*.log
-
-### Development ###
-*~
+# Miscellaneous
 *.swp
 *.swo
+*~
+.DS_Store
 .cache/
-.venv/
-*.egg-info/
