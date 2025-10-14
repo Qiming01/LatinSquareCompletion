@@ -1,0 +1,70 @@
+//
+// Created by 祁明 on 2025/10/14.
+//
+
+#ifndef LATINSQUARECOMPLETION_LOCAL_SEARCH_H
+#define LATINSQUARECOMPLETION_LOCAL_SEARCH_H
+
+#include "latin_square/latin_square.h"
+#include "latin_square/move.h"
+namespace qm::latin_square {
+
+class TabuList {
+public:
+    explicit TabuList(int N) : N_(N) {
+        // 初始化一维数组，大小为 N * N * N
+        tabu_list_.resize(N * N * N, 0);
+    }
+
+    [[nodiscard]] bool is_tabu(int i, int j, int color, unsigned long long current_iteration) const {
+        // 检查索引是否在有效范围内
+        assert(i >= 0 && i < N_ && j >= 0 && j < N_ && color >= 0 && color < N_);
+
+        // 计算一维索引：i * (N*N) + j * N + color
+        const int index = i * N_ * N_ + j * N_ + color;
+        return current_iteration < tabu_list_[index];
+    }
+
+    void make_tabu(int i, int j, int color, unsigned long long target_iteration) {
+        // 检查索引是否在有效范围内
+        assert(i >= 0 && i < N_ && j >= 0 && j < N_ && color >= 0 && color < N_);
+
+        // 计算一维索引：i * (N*N) + j * N + color
+        int index         = i * N_ * N_ + j * N_ + color;
+        tabu_list_[index] = target_iteration;
+    }
+
+    void clear_tabu() {
+        // 重置所有禁忌状态为0（非禁忌）
+        std::ranges::fill(tabu_list_, 0);
+    }
+
+    // 获取底层数组大小的方法
+    [[nodiscard]] int size() const { return N_; }
+
+    // 获取内存使用情况（字节）
+    [[nodiscard]] size_t memory_usage() const {
+        return tabu_list_.size() * sizeof(unsigned long long);
+    }
+
+private:
+    int N_;// 问题规模
+    // 一维数组表示三维结构：tabu_list_[i * N*N + j * N + color] = target_iteration
+    std::vector<unsigned long long> tabu_list_;
+};
+
+class LocalSearch {
+public:
+    void search(const LatinSquare &latin_square, const Solution &solution, unsigned long long max_iteration = 0);
+
+private:
+    unsigned long long iteration_{};
+    Solution current_solution_;
+    Solution best_solution_;
+
+    Move find_move();
+    void make_move(const Move &move);
+};
+}// namespace qm::latin_square
+
+#endif// LATINSQUARECOMPLETION_LOCAL_SEARCH_H

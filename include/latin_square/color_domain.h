@@ -92,6 +92,10 @@ public:
      */
     [[nodiscard]] int total_domain_size() const;
 
+    [[nodiscard]] bool is_valid(int i, int j, int color) const {
+        return domains_[i][j].bits[color];
+    }
+
 private:
     int n_;                                                 // 拉丁方的大小
     std::vector<std::vector<Domain<MAX_SET_SIZE>>> domains_;// 域矩阵

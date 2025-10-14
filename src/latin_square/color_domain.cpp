@@ -1,9 +1,9 @@
 //
 // Created by qiming on 25-7-17.
 //
-#include <unordered_set>
 #include "latin_square/color_domain.h"
 #include "utils/RandomGenerator.h"
+#include <unordered_set>
 
 namespace qm::latin_square {
 
@@ -58,10 +58,13 @@ bool ColorDomain::apply_reduction_rules_simply(const bool col_needed) {
             if (fixed(row, i)) { continue; }
             // 求剩余的集合的并集大小
             union_set.clear();
-            for (int c = 0; c < n_; ++c) { if (c != i) { union_set |= domains_[row][c]; } }
+            for (int c = 0; c < n_; ++c) {
+                if (c != i) { union_set |= domains_[row][c]; }
+            }
             if (auto complement = ~union_set; complement.size == 1) {
                 // 剩余的集合的并集大小为n-1，则剩余结点只能染剩下的那1种颜色
                 const auto value = complement.get_first_element();
+                // todo: 这一行的验证可能无法通过
                 assert(domains_[row][i].contains(value));
                 try_fix(row, i, value, col_needed);
                 changed = true;
@@ -73,7 +76,9 @@ bool ColorDomain::apply_reduction_rules_simply(const bool col_needed) {
             for (int i = 0; i < n_; ++i) {
                 if (fixed(i, col)) { continue; }
                 union_set.clear();
-                for (int r = 0; r < n_; ++r) { if (r != i) { union_set |= domains_[r][col]; } }
+                for (int r = 0; r < n_; ++r) {
+                    if (r != i) { union_set |= domains_[r][col]; }
+                }
                 if (auto completion = ~union_set; completion.size == 1) {
                     const auto value = completion.get_first_element();
                     assert(domains_[i][col].contains(value));
@@ -89,7 +94,9 @@ bool ColorDomain::apply_reduction_rules_simply(const bool col_needed) {
 void ColorDomain::try_fix(int i, int j, int value, bool col_needed) {
     fixed_[i][j] = value;
     for (int col = 0; col < n_; col++) { domains_[i][col].remove(value); }
-    if (col_needed) { for (int row = 0; row < n_; row++) { domains_[row][j].remove(value); } }
+    if (col_needed) {
+        for (int row = 0; row < n_; row++) { domains_[row][j].remove(value); }
+    }
     domains_[i][j].clear();
     domains_[i][j].insert(value);
     ++fixed_num_;
@@ -172,7 +179,9 @@ std::vector<std::vector<int>> ColorDomain::get_initial_solution() {
 int ColorDomain::total_domain_size() const {
     // 输出颜色域大小的总和
     int total_color_domain_size_ = 0;
-    for (int i = 0; i < n_; ++i) { for (int j = 0; j < n_; ++j) { total_color_domain_size_ += domains_[i][j].size; } }
+    for (int i = 0; i < n_; ++i) {
+        for (int j = 0; j < n_; ++j) { total_color_domain_size_ += domains_[i][j].size; }
+    }
     return total_color_domain_size_;
 }
-}
+}// namespace qm::latin_square
