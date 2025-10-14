@@ -14,15 +14,16 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
     iteration_        = 0;
     tabu_list_        = TabuList{latin_square.get_instance_size()};
     evaluator_        = Evaluator{latin_square, solution};
-    set_row_conflict_grid_(solution);
     while (iteration_ < max_iteration) {
+        set_row_conflict_grid_(current_solution_);
+
         auto move = find_move();
         make_move(move);
         if (current_solution_.total_conflict == 0) {
             std::clog << "Iteration: " << iteration_ << " conflict = 0, return." << std::endl;
             return;
         }
-        if (current_solution_ < best_solution_) { current_solution_ = best_solution_; }
+        if (current_solution_ < best_solution_) { best_solution_ = current_solution_; }
         if (iteration_ % 1000 == 0) { std::clog << "Iteration: " << iteration_ << " conflict = " << current_solution_.total_conflict << std::endl; }
         ++iteration_;
     }

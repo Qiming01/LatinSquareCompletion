@@ -67,12 +67,12 @@ struct Solution {
         if (solution.empty()) { throw std::invalid_argument("Solution is empty"); }
         const auto N = solution.size();
         // 计算行冲突
-        auto existed = std::make_unique<bool[]>(N);
+        auto existed = std::make_unique<int[]>(N);
         for (const auto &row: solution) {
-            std::fill_n(existed.get(), N, false);
+            std::fill_n(existed.get(), N, 0);
             for (const auto val: row) {
-                if (existed[val]) { ++row_conflict; }
-                existed[val] = true;
+                if (existed[val] > 0) { row_conflict += existed[val]; }
+                existed[val]++;
             }
         }
         // 计算列冲突
@@ -82,8 +82,8 @@ struct Solution {
             for (size_t i = 0; i < N; ++i) {
                 // 遍历行
                 const int val = solution[i][j];
-                if (existed[val]) { ++column_conflict; }
-                existed[val] = true;
+                if (existed[val] > 0) { column_conflict += existed[val]; }
+                existed[val]++;
             }
         }
         total_conflict = row_conflict + column_conflict;

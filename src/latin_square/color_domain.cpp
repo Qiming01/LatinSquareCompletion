@@ -168,11 +168,9 @@ std::vector<std::vector<int>> ColorDomain::get_initial_solution() {
             col_set.insert(solution[row][col]);
         }
     }
-    std::clog << "row_conflict_num: " << col_conflict_num << std::endl;
     domains_   = domains_bk;
     fixed_num_ = fixed_num_bk;
     std::swap(fixed_bk, fixed_);
-    std::clog << "total: " << total_domain_size() << std::endl;
     return fixed_bk;
 }
 

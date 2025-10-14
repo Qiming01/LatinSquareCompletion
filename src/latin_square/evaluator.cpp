@@ -22,13 +22,11 @@ void ColColorNumTable::set_table(const Solution &solution) {
 int ColColorNumTable::get_move_delta(const Solution &solution, const Move &move) const {
     const auto color1 = solution.get_color(move.row_id, move.col1);
     const auto color2 = solution.get_color(move.row_id, move.col2);
-    const auto res    = table_[color1][move.col1] + table_[color2][move.col2] - 2 - table_[color2][move.col1] - table_[color1][move.col2];
+    const auto res    = -table_[color1][move.col1] - table_[color2][move.col2] + 2 + table_[color2][move.col1] + table_[color1][move.col2];
     // 验证：
-    auto new_solution = solution;
-    new_solution.make_move(move);
-    std::cerr << res << " " << solution.total_conflict << " " << new_solution.total_conflict << std::endl;
-    assert(solution != new_solution);
-    assert(new_solution.total_conflict - solution.total_conflict == res);
+    // auto new_solution = solution;
+    // new_solution.make_move(move);
+    // assert(new_solution.total_conflict - solution.total_conflict == res);
 
     return res;
 }

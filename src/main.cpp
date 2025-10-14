@@ -20,6 +20,6 @@ int main() {
     auto latin_square = LatinSquare(instance);
     auto solution     = latin_square.generate_init_solution();
     LocalSearch local_search;
-    local_search.search(latin_square, solution, 10000);
+    local_search.search(latin_square, solution, 100000000);
     return 0;
 }
