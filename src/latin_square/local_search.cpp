@@ -2,3 +2,101 @@
 // Created by 祁明 on 2025/10/14.
 //
 #include "latin_square/local_search.h"
+
+#include "utils/RandomGenerator.h"
+
+#include <limits>
+
+namespace qm::latin_square {
+void LocalSearch::search(const LatinSquare &latin_square, const Solution &solution, const unsigned long long max_iteration) {
+    current_solution_ = solution;
+    best_solution_    = solution;
+    iteration_        = 0;
+    tabu_list_        = TabuList{latin_square.get_instance_size()};
+    evaluator_        = Evaluator{latin_square, solution};
+    while (iteration_ < max_iteration) {
+        auto move = find_move();
+        make_move(move);
+        if (current_solution_.total_conflict == 0) {
+            std::clog << "Iteration: " << iteration_ << " conflict = 0, return." << std::endl;
+            return;
+        }
+        if (current_solution_ < best_solution_) { current_solution_ = best_solution_; }
+        if (iteration_ % 1000 == 0) { std::clog << "Iteration: " << iteration_ << " conflict = " << current_solution_.total_conflict << std::endl; }
+        ++iteration_;
+    }
+}
+
+Move LocalSearch::find_move() {
+    // 遍历每一行
+    const int N = static_cast<int>(current_solution_.solution.size());
+    std::vector<Move> all_moves;
+    std::vector<Move> best_non_tabu_moves;
+    std::vector<Move> best_tabu_moves;
+    int best_non_tabu_move_delta1 = std::numeric_limits<int>::max();
+    int best_non_tabu_move_delta2 = std::numeric_limits<int>::max();
+    int best_tabu_move_delta1     = std::numeric_limits<int>::max();
+    int best_tabu_move_delta2     = std::numeric_limits<int>::max();
+    for (auto row = 0; row < N; ++row) {
+        // 冲突节点 - 冲突节点
+        for (auto i = 0; i < row_conflict_grid_[row].size(); ++i) {
+            const auto col1 = row_conflict_grid_[row][i];
+            for (auto j = i + 1; j < row_conflict_grid_[row].size(); ++j) {
+                const auto col2 = row_conflict_grid_[row][j];
+                all_moves.emplace_back(row, col1, col2);
+            }
+        }
+        // 冲突节点 - 非冲突节点
+        for (const auto col1: row_nonconflict_grid_[row]) { for (const auto col2: row_nonconflict_grid_[row]) { all_moves.emplace_back(row, col1, col2); } }
+
+        for (const auto &move: all_moves) {
+            auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
+            // todo
+        }
+    }
+    return {};
+}
+
+void LocalSearch::make_move(const Move &move) {
+    auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
+    auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
+    evaluator_.color_in_domain_table_.make_move(current_solution_, move);
+    evaluator_.row_color_num_table_.make_move(current_solution_, move);
+    set_tabu(move);
+    current_solution_.total_conflict += move_delta1;
+    current_solution_.domain_conflict += move_delta2;
+    std::swap(current_solution_.solution[move.row_id][move.col1], current_solution_.solution[move.row_id][move.col2]);
+}
+
+void LocalSearch::set_row_conflict_grid_(const Solution &solution) {
+    const int N = static_cast<int>(solution.solution.size());
+    row_conflict_grid_.clear();
+    row_conflict_grid_.resize(N, VecSet{N});
+    row_nonconflict_grid_.clear();
+    row_nonconflict_grid_.resize(N, VecSet{N});
+    for (auto row = 0; row < N; ++row) {
+        for (auto col = 0; col < N; ++col) {
+            if (evaluator_.color_in_domain_table_.latin_square_.is_fixed(row, col)) { continue; }
+            if (evaluator_.is_conflict_grid(row, col)) { row_conflict_grid_[row].insert(col); } else { row_nonconflict_grid_[row].insert(col); }
+        }
+    }
+}
+
+bool LocalSearch::is_tabu(const Move &move, int conflict_num) const {
+    if (conflict_num < best_solution_.total_conflict) { return false; }
+    const auto color1 = current_solution_.solution[move.row_id][move.col1];
+    const auto color2 = current_solution_.solution[move.row_id][move.col2];
+    // 查找交换颜色后是否在禁忌表内（回到原点）
+    return tabu_list_.is_tabu(move.row_id, move.col1, color2, iteration_) || tabu_list_.is_tabu(move.row_id, move.col2, color1, iteration_);
+}
+
+void LocalSearch::set_tabu(const Move &move) {
+    const auto color1 = current_solution_.solution[move.row_id][move.col1];
+    const auto color2 = current_solution_.solution[move.row_id][move.col2];
+    // 禁忌当前的颜色
+    constexpr double alpha                     = 0.4;
+    const auto target_iteration_without_random = static_cast<unsigned long long>(alpha * current_solution_.total_conflict) + iteration_;
+    tabu_list_.make_tabu(move.row_id, move.col1, color1, target_iteration_without_random + randomInt(10));
+    tabu_list_.make_tabu(move.row_id, move.col2, color2, target_iteration_without_random + randomInt(10));
+}
+}

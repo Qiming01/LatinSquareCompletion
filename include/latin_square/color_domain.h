@@ -13,6 +13,7 @@ class ColorDomain {
 public:
     static constexpr int MAX_SET_SIZE = 100;// 最大集合大小
 
+    ColorDomain() = default;
     /**
      * @brief 构造函数
      * @param n 拉丁方的大小（n x n）
@@ -92,12 +93,10 @@ public:
      */
     [[nodiscard]] int total_domain_size() const;
 
-    [[nodiscard]] bool is_valid(int i, int j, int color) const {
-        return domains_[i][j].bits[color];
-    }
+    [[nodiscard]] bool is_valid(int i, int j, int color) const { return domains_[i][j].bits[color]; }
 
 private:
-    int n_;                                                 // 拉丁方的大小
+    int n_{};                                               // 拉丁方的大小
     std::vector<std::vector<Domain<MAX_SET_SIZE>>> domains_;// 域矩阵
     std::vector<std::vector<int>> fixed_;                   // 固定值矩阵
     int fixed_num_{0};                                      // 已固定值的数量

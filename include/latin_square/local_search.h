@@ -7,10 +7,15 @@
 
 #include "latin_square/latin_square.h"
 #include "latin_square/move.h"
+#include "latin_square/evaluator.h"
+#include "latin_square/vec_set.h"
+
 namespace qm::latin_square {
 
 class TabuList {
 public:
+    TabuList() = default;
+
     explicit TabuList(int N) : N_(N) {
         // 初始化一维数组，大小为 N * N * N
         tabu_list_.resize(N * N * N, 0);
@@ -43,12 +48,10 @@ public:
     [[nodiscard]] int size() const { return N_; }
 
     // 获取内存使用情况（字节）
-    [[nodiscard]] size_t memory_usage() const {
-        return tabu_list_.size() * sizeof(unsigned long long);
-    }
+    [[nodiscard]] size_t memory_usage() const { return tabu_list_.size() * sizeof(unsigned long long); }
 
 private:
-    int N_;// 问题规模
+    int N_{};// 问题规模
     // 一维数组表示三维结构：tabu_list_[i * N*N + j * N + color] = target_iteration
     std::vector<unsigned long long> tabu_list_;
 };
@@ -61,9 +64,15 @@ private:
     unsigned long long iteration_{};
     Solution current_solution_;
     Solution best_solution_;
-
+    TabuList tabu_list_;
+    Evaluator evaluator_;
+    std::vector<VecSet> row_conflict_grid_;
+    std::vector<VecSet> row_nonconflict_grid_;
     Move find_move();
     void make_move(const Move &move);
+    void set_row_conflict_grid_(const Solution &solution);
+    [[nodiscard]] bool is_tabu(const Move &move, int conflict_num) const;
+    void set_tabu(const Move &move);
 };
 }// namespace qm::latin_square
 
