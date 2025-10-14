@@ -14,6 +14,7 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
     iteration_        = 0;
     tabu_list_        = TabuList{latin_square.get_instance_size()};
     evaluator_        = Evaluator{latin_square, solution};
+    set_row_conflict_grid_(solution);
     while (iteration_ < max_iteration) {
         auto move = find_move();
         make_move(move);
@@ -30,38 +31,101 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
 Move LocalSearch::find_move() {
     // 遍历每一行
     const int N = static_cast<int>(current_solution_.solution.size());
-    std::vector<Move> all_moves;
-    std::vector<Move> best_non_tabu_moves;
-    std::vector<Move> best_tabu_moves;
+    Move best_non_tabu_move{-1, -1, -1};
+    Move best_tabu_move{-1, -1, -1};
     int best_non_tabu_move_delta1 = std::numeric_limits<int>::max();
     int best_non_tabu_move_delta2 = std::numeric_limits<int>::max();
     int best_tabu_move_delta1     = std::numeric_limits<int>::max();
     int best_tabu_move_delta2     = std::numeric_limits<int>::max();
+    int non_tabu_move_num         = 0;
+    int tabu_move_num             = 0;
+
     for (auto row = 0; row < N; ++row) {
         // 冲突节点 - 冲突节点
         for (auto i = 0; i < row_conflict_grid_[row].size(); ++i) {
             const auto col1 = row_conflict_grid_[row][i];
             for (auto j = i + 1; j < row_conflict_grid_[row].size(); ++j) {
                 const auto col2 = row_conflict_grid_[row][j];
-                all_moves.emplace_back(row, col1, col2);
+                Move move{row, col1, col2};
+
+                auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
+                auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
+
+                if (is_tabu(move, current_solution_.total_conflict + move_delta1)) {
+                    // 禁忌移动
+                    if (move_delta1 < best_tabu_move_delta1 ||
+                        (move_delta1 == best_tabu_move_delta1 && move_delta2 < best_tabu_move_delta2)) {
+                        best_tabu_move_delta1 = move_delta1;
+                        best_tabu_move_delta2 = move_delta2;
+                        best_tabu_move        = move;
+                        tabu_move_num         = 1;
+                    } else if (move_delta1 == best_tabu_move_delta1 && move_delta2 == best_tabu_move_delta2) {
+                        tabu_move_num++;
+                        if (randomInt(tabu_move_num) == 0) { best_tabu_move = move; }
+                    }
+                } else {
+                    // 非禁忌移动
+                    if (move_delta1 < best_non_tabu_move_delta1 ||
+                        (move_delta1 == best_non_tabu_move_delta1 && move_delta2 < best_non_tabu_move_delta2)) {
+                        best_non_tabu_move_delta1 = move_delta1;
+                        best_non_tabu_move_delta2 = move_delta2;
+                        best_non_tabu_move        = move;
+                        non_tabu_move_num         = 1;
+                    } else if (move_delta1 == best_non_tabu_move_delta1 && move_delta2 == best_non_tabu_move_delta2) {
+                        non_tabu_move_num++;
+                        if (randomInt(non_tabu_move_num) == 0) { best_non_tabu_move = move; }
+                    }
+                }
             }
         }
-        // 冲突节点 - 非冲突节点
-        for (const auto col1: row_nonconflict_grid_[row]) { for (const auto col2: row_nonconflict_grid_[row]) { all_moves.emplace_back(row, col1, col2); } }
 
-        for (const auto &move: all_moves) {
-            auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
-            // todo
+        // 冲突节点 - 非冲突节点
+        for (const auto col1: row_conflict_grid_[row]) {
+            for (const auto col2: row_nonconflict_grid_[row]) {
+                Move move{row, col1, col2};
+
+                auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
+                auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
+
+                if (is_tabu(move, current_solution_.total_conflict + move_delta1)) {
+                    // 禁忌移动
+                    if (move_delta1 < best_tabu_move_delta1 ||
+                        (move_delta1 == best_tabu_move_delta1 && move_delta2 < best_tabu_move_delta2)) {
+                        best_tabu_move_delta1 = move_delta1;
+                        best_tabu_move_delta2 = move_delta2;
+                        best_tabu_move        = move;
+                        tabu_move_num         = 1;
+                    } else if (move_delta1 == best_tabu_move_delta1 && move_delta2 == best_tabu_move_delta2) {
+                        tabu_move_num++;
+                        if (randomInt(tabu_move_num) == 0) { best_tabu_move = move; }
+                    }
+                } else {
+                    // 非禁忌移动
+                    if (move_delta1 < best_non_tabu_move_delta1 ||
+                        (move_delta1 == best_non_tabu_move_delta1 && move_delta2 < best_non_tabu_move_delta2)) {
+                        best_non_tabu_move_delta1 = move_delta1;
+                        best_non_tabu_move_delta2 = move_delta2;
+                        best_non_tabu_move        = move;
+                        non_tabu_move_num         = 1;
+                    } else if (move_delta1 == best_non_tabu_move_delta1 && move_delta2 == best_non_tabu_move_delta2) {
+                        non_tabu_move_num++;
+                        if (randomInt(non_tabu_move_num) == 0) { best_non_tabu_move = move; }
+                    }
+                }
+            }
         }
     }
-    return {};
+
+    // 选择最佳移动：特赦规则 - 如果禁忌移动比历史最优解更好，则选择禁忌移动
+    if (best_tabu_move_delta1 < best_solution_.total_conflict - current_solution_.total_conflict &&
+        best_tabu_move_delta1 < best_non_tabu_move_delta1) { return best_tabu_move; } else { return best_non_tabu_move; }
 }
 
 void LocalSearch::make_move(const Move &move) {
     auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
     auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
     evaluator_.color_in_domain_table_.make_move(current_solution_, move);
-    evaluator_.row_color_num_table_.make_move(current_solution_, move);
+    evaluator_.col_color_num_table_.make_move(current_solution_, move);
     set_tabu(move);
     current_solution_.total_conflict += move_delta1;
     current_solution_.domain_conflict += move_delta2;
@@ -77,7 +141,7 @@ void LocalSearch::set_row_conflict_grid_(const Solution &solution) {
     for (auto row = 0; row < N; ++row) {
         for (auto col = 0; col < N; ++col) {
             if (evaluator_.color_in_domain_table_.latin_square_.is_fixed(row, col)) { continue; }
-            if (evaluator_.is_conflict_grid(row, col)) { row_conflict_grid_[row].insert(col); } else { row_nonconflict_grid_[row].insert(col); }
+            if (evaluator_.is_conflict_grid(solution.get_color(row, col), col)) { row_conflict_grid_[row].insert(col); } else { row_nonconflict_grid_[row].insert(col); }
         }
     }
 }

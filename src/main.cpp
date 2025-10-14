@@ -19,7 +19,7 @@ int main() {
     std::cin >> *instance;
     auto latin_square = LatinSquare(instance);
     auto solution     = latin_square.generate_init_solution();
-    RowColorNumTable row_color_num_table(solution);
-    std::cout << solution.row_conflict << "\t" << solution.column_conflict << "\t" << solution.total_conflict << std::endl;
+    LocalSearch local_search;
+    local_search.search(latin_square, solution, 10000);
     return 0;
 }

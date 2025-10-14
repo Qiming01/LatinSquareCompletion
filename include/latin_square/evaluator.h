@@ -13,10 +13,10 @@ namespace qm::latin_square {
  * @brief 列内颜色数记录表
  * @size 大小：N（颜色数） * N（列数）
  */
-struct RowColorNumTable {
-    RowColorNumTable() = default;
+struct ColColorNumTable {
+    ColColorNumTable() = default;
 
-    explicit RowColorNumTable(const Solution &solution);
+    explicit ColColorNumTable(const Solution &solution);
 
     void set_table(const Solution &solution);
 
@@ -55,20 +55,20 @@ class Evaluator {
 public:
     Evaluator() = default;
     // 一级评估函数
-    explicit Evaluator(const LatinSquare &latin_square, const Solution &solution) : row_color_num_table_(solution), color_in_domain_table_(solution, latin_square) {}
-    [[nodiscard]] int evaluate_conflict_delta(const Solution &solution, const Move &move) const { return row_color_num_table_.get_move_delta(solution, move); }
+    explicit Evaluator(const LatinSquare &latin_square, const Solution &solution) : col_color_num_table_(solution), color_in_domain_table_(solution, latin_square) {}
+    [[nodiscard]] int evaluate_conflict_delta(const Solution &solution, const Move &move) const { return col_color_num_table_.get_move_delta(solution, move); }
     // 二级评估函数
     [[nodiscard]] int evaluate_domain_delta(const Solution &solution, const Move &move) const { return color_in_domain_table_.get_move_delta(solution, move); }
     // 对评估器进行更新，需要在对 solution 进行邻域动作之前
     void update(const Solution &old_solution, const Move &move) {
-        row_color_num_table_.make_move(old_solution, move);
+        col_color_num_table_.make_move(old_solution, move);
         color_in_domain_table_.make_move(old_solution, move);
     }
 
-    [[nodiscard]] bool is_conflict_grid(int i, int j) const { return row_color_num_table_.table_[i][j] > 1; }
+    [[nodiscard]] bool is_conflict_grid(int color, int j) const { return col_color_num_table_.table_[color][j] > 1; }
 
 private:
-    RowColorNumTable row_color_num_table_;
+    ColColorNumTable col_color_num_table_;
     ColorInDomainTable color_in_domain_table_;
 };
 
