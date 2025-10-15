@@ -30,7 +30,7 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
 
         if (current_solution_ - best_solution_ > rt) {
             std::cerr << "重启" << std::endl;
-            tabu_list_ = TabuList{latin_square.get_instance_size()};
+            // tabu_list_ = TabuList{latin_square.get_instance_size()};
             // 使用历史最优解替换当前解
             current_solution_ = best_solution_;
             evaluator_        = Evaluator{latin_square, current_solution_};
@@ -71,31 +71,48 @@ Move LocalSearch::find_move() {
                 Move move{row, col1, col2};
 
                 auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
-                auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
 
                 if (is_tabu(move, current_solution_.total_conflict + move_delta1)) {
                     // 禁忌移动
-                    if (move_delta1 < best_tabu_move_delta1 ||
-                        (move_delta1 == best_tabu_move_delta1 && move_delta2 < best_tabu_move_delta2)) {
+                    if (move_delta1 < best_tabu_move_delta1) {
+                        // 一级评估函数更优，计算二级评估函数
+                        auto move_delta2      = evaluator_.evaluate_domain_delta(current_solution_, move);
                         best_tabu_move_delta1 = move_delta1;
                         best_tabu_move_delta2 = move_delta2;
                         best_tabu_move        = move;
                         tabu_move_num         = 1;
-                    } else if (move_delta1 == best_tabu_move_delta1 && move_delta2 == best_tabu_move_delta2) {
-                        tabu_move_num++;
-                        if (randomInt(tabu_move_num) == 0) { best_tabu_move = move; }
+                    } else if (move_delta1 == best_tabu_move_delta1) {
+                        // 一级评估函数相同，计算二级评估函数进行比较
+                        auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
+                        if (move_delta2 < best_tabu_move_delta2) {
+                            best_tabu_move_delta2 = move_delta2;
+                            best_tabu_move        = move;
+                            tabu_move_num         = 1;
+                        } else if (move_delta2 == best_tabu_move_delta2) {
+                            tabu_move_num++;
+                            if (randomInt(tabu_move_num) == 0) { best_tabu_move = move; }
+                        }
                     }
                 } else {
                     // 非禁忌移动
-                    if (move_delta1 < best_non_tabu_move_delta1 ||
-                        (move_delta1 == best_non_tabu_move_delta1 && move_delta2 < best_non_tabu_move_delta2)) {
+                    if (move_delta1 < best_non_tabu_move_delta1) {
+                        // 一级评估函数更优，计算二级评估函数
+                        auto move_delta2          = evaluator_.evaluate_domain_delta(current_solution_, move);
                         best_non_tabu_move_delta1 = move_delta1;
                         best_non_tabu_move_delta2 = move_delta2;
                         best_non_tabu_move        = move;
                         non_tabu_move_num         = 1;
-                    } else if (move_delta1 == best_non_tabu_move_delta1 && move_delta2 == best_non_tabu_move_delta2) {
-                        non_tabu_move_num++;
-                        if (randomInt(non_tabu_move_num) == 0) { best_non_tabu_move = move; }
+                    } else if (move_delta1 == best_non_tabu_move_delta1) {
+                        // 一级评估函数相同，计算二级评估函数进行比较
+                        auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
+                        if (move_delta2 < best_non_tabu_move_delta2) {
+                            best_non_tabu_move_delta2 = move_delta2;
+                            best_non_tabu_move        = move;
+                            non_tabu_move_num         = 1;
+                        } else if (move_delta2 == best_non_tabu_move_delta2) {
+                            non_tabu_move_num++;
+                            if (randomInt(non_tabu_move_num) == 0) { best_non_tabu_move = move; }
+                        }
                     }
                 }
             }
@@ -107,31 +124,48 @@ Move LocalSearch::find_move() {
                 Move move{row, col1, col2};
 
                 auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
-                auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
 
                 if (is_tabu(move, current_solution_.total_conflict + move_delta1)) {
                     // 禁忌移动
-                    if (move_delta1 < best_tabu_move_delta1 ||
-                        (move_delta1 == best_tabu_move_delta1 && move_delta2 < best_tabu_move_delta2)) {
+                    if (move_delta1 < best_tabu_move_delta1) {
+                        // 一级评估函数更优，计算二级评估函数
+                        auto move_delta2      = evaluator_.evaluate_domain_delta(current_solution_, move);
                         best_tabu_move_delta1 = move_delta1;
                         best_tabu_move_delta2 = move_delta2;
                         best_tabu_move        = move;
                         tabu_move_num         = 1;
-                    } else if (move_delta1 == best_tabu_move_delta1 && move_delta2 == best_tabu_move_delta2) {
-                        tabu_move_num++;
-                        if (randomInt(tabu_move_num) == 0) { best_tabu_move = move; }
+                    } else if (move_delta1 == best_tabu_move_delta1) {
+                        // 一级评估函数相同，计算二级评估函数进行比较
+                        auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
+                        if (move_delta2 < best_tabu_move_delta2) {
+                            best_tabu_move_delta2 = move_delta2;
+                            best_tabu_move        = move;
+                            tabu_move_num         = 1;
+                        } else if (move_delta2 == best_tabu_move_delta2) {
+                            tabu_move_num++;
+                            if (randomInt(tabu_move_num) == 0) { best_tabu_move = move; }
+                        }
                     }
                 } else {
                     // 非禁忌移动
-                    if (move_delta1 < best_non_tabu_move_delta1 ||
-                        (move_delta1 == best_non_tabu_move_delta1 && move_delta2 < best_non_tabu_move_delta2)) {
+                    if (move_delta1 < best_non_tabu_move_delta1) {
+                        // 一级评估函数更优，计算二级评估函数
+                        auto move_delta2          = evaluator_.evaluate_domain_delta(current_solution_, move);
                         best_non_tabu_move_delta1 = move_delta1;
                         best_non_tabu_move_delta2 = move_delta2;
                         best_non_tabu_move        = move;
                         non_tabu_move_num         = 1;
-                    } else if (move_delta1 == best_non_tabu_move_delta1 && move_delta2 == best_non_tabu_move_delta2) {
-                        non_tabu_move_num++;
-                        if (randomInt(non_tabu_move_num) == 0) { best_non_tabu_move = move; }
+                    } else if (move_delta1 == best_non_tabu_move_delta1) {
+                        // 一级评估函数相同，计算二级评估函数进行比较
+                        auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
+                        if (move_delta2 < best_non_tabu_move_delta2) {
+                            best_non_tabu_move_delta2 = move_delta2;
+                            best_non_tabu_move        = move;
+                            non_tabu_move_num         = 1;
+                        } else if (move_delta2 == best_non_tabu_move_delta2) {
+                            non_tabu_move_num++;
+                            if (randomInt(non_tabu_move_num) == 0) { best_non_tabu_move = move; }
+                        }
                     }
                 }
             }
