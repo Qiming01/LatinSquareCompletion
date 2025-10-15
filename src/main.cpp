@@ -20,6 +20,48 @@ void print_usage(const char *program_name) {
     std::cerr << "示例: " << program_name << " 600 123456 <../data/LSC.n50f750.00.txt >sln.LSC.n50f750.00.txt" << std::endl;
 }
 
+// 验证解的冲突数
+int verify_solution_conflicts(const Solution &solution) {
+    const auto &grid    = solution.solution;
+    const auto N        = grid.size();
+    int total_conflicts = 0;
+
+    // 计算行冲突
+    int row_conflicts = 0;
+    auto count        = std::make_unique<int[]>(N);
+    for (const auto &row: grid) {
+        std::fill_n(count.get(), N, 0);
+        for (const auto val: row) {
+            if (count[val] > 0) {
+                row_conflicts += count[val];
+            }
+            count[val]++;
+        }
+    }
+
+    // 计算列冲突
+    int col_conflicts = 0;
+    for (size_t col = 0; col < N; ++col) {
+        std::fill_n(count.get(), N, 0);
+        for (size_t row = 0; row < N; ++row) {
+            const int val = grid[row][col];
+            if (count[val] > 0) {
+                col_conflicts += count[val];
+            }
+            count[val]++;
+        }
+    }
+
+    total_conflicts = row_conflicts + col_conflicts;
+
+    std::cerr << "解验证结果:" << std::endl;
+    std::cerr << "  行冲突: " << row_conflicts << std::endl;
+    std::cerr << "  列冲突: " << col_conflicts << std::endl;
+    std::cerr << "  总冲突: " << total_conflicts << std::endl;
+
+    return total_conflicts;
+}
+
 int main(int argc, char *argv[]) {
     // 检查命令行参数
     if (argc != 3) {
@@ -95,9 +137,31 @@ int main(int argc, char *argv[]) {
 
     std::cerr << "实际运行时间: " << elapsed.count() << " 秒" << std::endl;
 
-    // 输出最终解到标准输出
+    // 获取最终解
     const auto &best_solution = local_search.best_solution_;
-    // std::cout << best_solution.solution.size() << std::endl;
+    //
+    // // 验证解的冲突数
+    // std::cerr << "\n=== 输出前验证 ===" << std::endl;
+    // int verified_conflicts = verify_solution_conflicts(best_solution);
+    //
+    // // 检查是否与算法报告的冲突数一致
+    // if (verified_conflicts != best_solution.total_conflict) {
+    //     std::cerr << "警告: 验证的冲突数 (" << verified_conflicts
+    //               << ") 与算法报告的冲突数 (" << best_solution.total_conflict
+    //               << ") 不一致!" << std::endl;
+    // } else {
+    //     std::cerr << "验证通过: 冲突数一致" << std::endl;
+    // }
+    //
+    // if (verified_conflicts > 0) {
+    //     std::cerr << "警告: 解仍有 " << verified_conflicts << " 个冲突，不是可行解" << std::endl;
+    // } else {
+    //     std::cerr << "成功: 找到可行解（无冲突）" << std::endl;
+    // }
+    // std::cerr << "==================\n"
+    //           << std::endl;
+
+    // 输出最终解到标准输出
     for (const auto &row: best_solution.solution) {
         for (size_t i = 0; i < row.size(); ++i) {
             if (i > 0) std::cout << " ";

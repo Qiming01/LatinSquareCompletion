@@ -38,6 +38,10 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
         }
         auto move = find_move();
         make_move(move);
+
+        if (current_solution_ <= best_solution_) { best_solution_ = current_solution_; }
+        // if (iteration_ % 10000 == 0) { std::clog << "Iteration: " << iteration_ << " conflict = " << current_solution_.total_conflict << std::endl; }
+
         if (current_solution_.total_conflict == 0) {
             // 计算求解时间
             auto end_time                         = std::chrono::high_resolution_clock::now();
@@ -46,9 +50,6 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
             std::clog << "求解时间: " << std::fixed << std::setprecision(3) << elapsed.count() << " s" << std::endl;
             return;
         }
-        if (current_solution_ <= best_solution_) { best_solution_ = current_solution_; }
-        // if (iteration_ % 10000 == 0) { std::clog << "Iteration: " << iteration_ << " conflict = " << current_solution_.total_conflict << std::endl; }
-
         if (current_solution_ - best_solution_ > rt) {
             std::cerr << "重启" << std::endl;
             // 清空禁忌表
