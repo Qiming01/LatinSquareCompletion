@@ -149,9 +149,9 @@ Move LocalSearch::find_move() {
 void LocalSearch::make_move(const Move &move) {
     auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
     auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
+    set_tabu(move);
     evaluator_.color_in_domain_table_.make_move(current_solution_, move);
     evaluator_.col_color_num_table_.make_move(current_solution_, move);
-    set_tabu(move);
     current_solution_.total_conflict += move_delta1;
     current_solution_.domain_conflict += move_delta2;
     std::swap(current_solution_.solution[move.row_id][move.col1], current_solution_.solution[move.row_id][move.col2]);
@@ -190,6 +190,7 @@ void LocalSearch::set_tabu(const Move &move) {
     constexpr double alpha                     = 0.4;
     const auto target_iteration_without_random = static_cast<unsigned long long>(alpha * current_solution_.total_conflict) + iteration_;
     tabu_list_.make_tabu(move.row_id, move.col1, color1, target_iteration_without_random + randomInt(10));
-    tabu_list_.make_tabu(move.row_id, move.col2, color2, target_iteration_without_random + randomInt(10));
+    if (evaluator_.is_conflict_grid(color2, move.col2))
+        tabu_list_.make_tabu(move.row_id, move.col2, color2, target_iteration_without_random + randomInt(10));
 }
 }// namespace qm::latin_square
