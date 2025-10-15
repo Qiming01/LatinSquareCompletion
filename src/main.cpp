@@ -57,12 +57,25 @@ int main(int argc, char *argv[]) {
     const auto instance = std::make_shared<Instance>();
     std::cin >> *instance;
 
+    qm::setRandomSeed(random_seed);
+
+
     // 初始化拉丁方和解
     auto latin_square = LatinSquare(instance);
     auto solution     = latin_square.generate_init_solution();
 
+    if (solution.total_conflict == 0) {
+        for (const auto &row: solution.solution) {
+            for (size_t i = 0; i < row.size(); ++i) {
+                if (i > 0) std::cout << " ";
+                std::cout << row[i];
+            }
+            std::cout << std::endl;
+        }
+        return 0;
+    }
+
     // 设置随机种子
-    qm::setRandomSeed(random_seed);
 
     // 记录开始时间
     auto start_time = std::chrono::high_resolution_clock::now();
