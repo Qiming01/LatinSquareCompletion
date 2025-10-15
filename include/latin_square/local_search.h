@@ -58,12 +58,13 @@ private:
 
 class LocalSearch {
 public:
-    void search(const LatinSquare &latin_square, const Solution &solution, unsigned long long max_iteration = 0);
+    void search(const LatinSquare &latin_square, const Solution &solution, unsigned long long max_iteration = 0, int time_limit_seconds = 0);
+    
+    Solution best_solution_;  // 公开最优解，供外部访问
 
 private:
     unsigned long long iteration_{};
     Solution current_solution_;
-    Solution best_solution_;
     TabuList tabu_list_;
     Evaluator evaluator_;
     std::vector<VecSet> row_conflict_grid_;
@@ -73,9 +74,12 @@ private:
     Move find_move();
     void make_move(const Move &move);
     void set_row_conflict_grid_(const Solution &solution);
+    void update_row_conflict_grid_incremental_(const std::vector<ColColorNumTable::AffectedCell> &affected_cells);
     [[nodiscard]] bool is_tabu(const Move &move, int conflict_num) const;
     void set_tabu(const Move &move);
-
+    
+    // for debug
+    void verify_conflict_grid() const;
 
     // for debug
     void check_solution_conflict_number() const {

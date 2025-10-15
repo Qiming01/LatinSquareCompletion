@@ -5,13 +5,16 @@
 #ifndef LATINSQUARECOMPLETION_EVALUATOR_H
 #define LATINSQUARECOMPLETION_EVALUATOR_H
 #include "latin_square/latin_square.h"
+#include "vec_set.h"
 
 namespace qm::latin_square {
 
 
 /**
  * @brief 列内颜色数记录表
- * @size 大小：N（颜色数） * N（列数）
+ * @details 使用 VecSet 存储每个 (颜色, 列) 对应的行集合
+ * table_[color][col] 存储在第 col 列使用 color 颜色的所有行
+ * size 表示该 (颜色, 列) 对的行数，用于快速判断冲突
  */
 struct ColColorNumTable {
     ColColorNumTable() = default;
@@ -23,11 +26,23 @@ struct ColColorNumTable {
     [[nodiscard]] int get_move_delta(const Solution &solution, const Move &move) const;
 
     // warn: 先更新记录表，再更新解
-    void make_move(const Solution &old_solution, const Move &move);
+    // 返回值：受影响的 (颜色, 列) 对，用于增量更新冲突节点
+    struct AffectedCell {
+        int color;
+        int col;
+    };
+    std::vector<AffectedCell> make_move(const Solution &old_solution, const Move &move);
 
-    [[nodiscard]] bool is_conflict_grid(int i, int j) const { return table_[i][j] != 1; }
+    [[nodiscard]] bool is_conflict_grid(int color, int col) const {
+        return table_[color][col].size() > 1;
+    }
 
-    std::vector<std::vector<int>> table_;
+    // 获取在第 col 列使用 color 颜色的所有行
+    [[nodiscard]] const VecSet &get_rows(int color, int col) const {
+        return table_[color][col];
+    }
+
+    std::vector<std::vector<VecSet>> table_;// table_[color][col] = 使用该颜色的行集合
 };
 
 /**
@@ -65,7 +80,7 @@ public:
         color_in_domain_table_.make_move(old_solution, move);
     }
 
-    [[nodiscard]] bool is_conflict_grid(int color, int j) const { return col_color_num_table_.table_[color][j] > 1; }
+    [[nodiscard]] bool is_conflict_grid(int color, int j) const { return col_color_num_table_.table_[color][j].size() > 1; }
 
 private:
     ColColorNumTable col_color_num_table_;
