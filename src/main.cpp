@@ -5,6 +5,7 @@
 #include "latin_square/instance.h"
 #include "latin_square/latin_square.h"
 #include "latin_square/local_search.h"
+#include "utils/RandomGenerator.h"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -19,6 +20,7 @@ int main() {
     std::cin >> *instance;
     auto latin_square = LatinSquare(instance);
     auto solution     = latin_square.generate_init_solution();
+    qm::setRandomSeed(123456);
     LocalSearch local_search;
     local_search.search(latin_square, solution, 100000000);
     return 0;

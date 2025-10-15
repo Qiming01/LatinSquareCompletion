@@ -31,7 +31,7 @@ struct ColColorNumTable {
 };
 
 /**
- * @brief 每个格子的当前颜色是否在颜色域内，1 表示在，0 表示不在
+ * @brief 每个格子的当前颜色是否在颜色域内，0 表示在，1 表示不在
  */
 struct ColorInDomainTable {
     ColorInDomainTable() = default;

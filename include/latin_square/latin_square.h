@@ -34,31 +34,48 @@ struct Solution {
     }
 
     bool operator==(const Solution &other) const {
+#ifdef COMPARE_DOMAIN_CONFLICTS
         return row_conflict == other.row_conflict &&
                column_conflict == other.column_conflict &&
                total_conflict == other.total_conflict &&
                solution == other.solution &&
                domain_conflict == other.domain_conflict;
+#else
+        return total_conflict == other.total_conflict;
+#endif
     }
 
+
     bool operator<(const Solution &other) const {
+#ifdef COMPARE_DOMAIN_CONFLICTS
         // 先比较一级评估指标 (total_conflict)
         if (total_conflict != other.total_conflict) { return total_conflict < other.total_conflict; }
         // 当一级评估指标相同时，比较二级评估指标 (domain_conflict)
         return domain_conflict < other.domain_conflict;
+#else
+        return total_conflict < other.total_conflict;
+#endif
     }
 
     bool operator>(const Solution &other) const {
+#ifdef COMPARE_DOMAIN_CONFLICTS
         // 先比较一级评估指标 (total_conflict)
         if (total_conflict != other.total_conflict) { return total_conflict > other.total_conflict; }
         // 当一级评估指标相同时，比较二级评估指标 (domain_conflict)
         return domain_conflict > other.domain_conflict;
+#else
+        return total_conflict > other.total_conflict;
+#endif
     }
 
     bool operator<=(const Solution &other) const { return !(*this > other); }
 
     bool operator>=(const Solution &other) const { return !(*this < other); }
     bool operator!=(const Solution &other) const { return !(*this == other); }
+
+    int operator-(const Solution &other) const {
+        return total_conflict - other.total_conflict;
+    }
 
     void calculate_conflict() {
         row_conflict    = 0;
@@ -109,7 +126,7 @@ public:
 
     [[nodiscard]] int get_instance_size() const { return instance_->size(); }
 
-private:
+    // private:
     std::shared_ptr<Instance> instance_;
     ColorDomain color_domain_;
 };

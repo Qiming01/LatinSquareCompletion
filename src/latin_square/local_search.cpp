@@ -14,6 +14,8 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
     iteration_        = 0;
     tabu_list_        = TabuList{latin_square.get_instance_size()};
     evaluator_        = Evaluator{latin_square, solution};
+    accu              = 0;
+    rt                = 10;
     while (iteration_ < max_iteration) {
         set_row_conflict_grid_(current_solution_);
 
@@ -23,8 +25,27 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
             std::clog << "Iteration: " << iteration_ << " conflict = 0, return." << std::endl;
             return;
         }
-        if (current_solution_ < best_solution_) { best_solution_ = current_solution_; }
-        if (iteration_ % 1000 == 0) { std::clog << "Iteration: " << iteration_ << " conflict = " << current_solution_.total_conflict << std::endl; }
+        if (current_solution_ <= best_solution_) { best_solution_ = current_solution_; }
+        if (iteration_ % 10000 == 0) { std::clog << "Iteration: " << iteration_ << " conflict = " << current_solution_.total_conflict << std::endl; }
+
+        if (current_solution_ - best_solution_ > rt) {
+            std::cerr << "重启" << std::endl;
+            tabu_list_ = TabuList{latin_square.get_instance_size()};
+            // 使用历史最优解替换当前解
+            current_solution_ = best_solution_;
+            evaluator_        = Evaluator{latin_square, current_solution_};
+            // 扰动 todo
+            // 如果重启阈值没有到达上限
+            static constexpr int rtub  = 15;
+            static constexpr int accub = 1000;
+            if (rt < rtub) {
+                ++accu;// 累计重启次数加一
+                if (accu == accub) {
+                    ++rt;// 增大重启阈值
+                    accu = 0;
+                }
+            }
+        }
         ++iteration_;
     }
 }
@@ -119,7 +140,10 @@ Move LocalSearch::find_move() {
 
     // 选择最佳移动：特赦规则 - 如果禁忌移动比历史最优解更好，则选择禁忌移动
     if (best_tabu_move_delta1 < best_solution_.total_conflict - current_solution_.total_conflict &&
-        best_tabu_move_delta1 < best_non_tabu_move_delta1) { return best_tabu_move; } else { return best_non_tabu_move; }
+        best_tabu_move_delta1 < best_non_tabu_move_delta1) {
+        return best_tabu_move;
+    }
+    return best_non_tabu_move;
 }
 
 void LocalSearch::make_move(const Move &move) {
@@ -142,13 +166,17 @@ void LocalSearch::set_row_conflict_grid_(const Solution &solution) {
     for (auto row = 0; row < N; ++row) {
         for (auto col = 0; col < N; ++col) {
             if (evaluator_.color_in_domain_table_.latin_square_.is_fixed(row, col)) { continue; }
-            if (evaluator_.is_conflict_grid(solution.get_color(row, col), col)) { row_conflict_grid_[row].insert(col); } else { row_nonconflict_grid_[row].insert(col); }
+            if (evaluator_.is_conflict_grid(solution.get_color(row, col), col)) {
+                row_conflict_grid_[row].insert(col);
+            } else {
+                row_nonconflict_grid_[row].insert(col);
+            }
         }
     }
 }
 
 bool LocalSearch::is_tabu(const Move &move, int conflict_num) const {
-    if (conflict_num < best_solution_.total_conflict) { return false; }
+    // if (conflict_num < best_solution_.total_conflict) { return false; }
     const auto color1 = current_solution_.solution[move.row_id][move.col1];
     const auto color2 = current_solution_.solution[move.row_id][move.col2];
     // 查找交换颜色后是否在禁忌表内（回到原点）
@@ -164,4 +192,4 @@ void LocalSearch::set_tabu(const Move &move) {
     tabu_list_.make_tabu(move.row_id, move.col1, color1, target_iteration_without_random + randomInt(10));
     tabu_list_.make_tabu(move.row_id, move.col2, color2, target_iteration_without_random + randomInt(10));
 }
-}
+}// namespace qm::latin_square

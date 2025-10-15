@@ -5,9 +5,9 @@
 #ifndef LATINSQUARECOMPLETION_LOCAL_SEARCH_H
 #define LATINSQUARECOMPLETION_LOCAL_SEARCH_H
 
+#include "latin_square/evaluator.h"
 #include "latin_square/latin_square.h"
 #include "latin_square/move.h"
-#include "latin_square/evaluator.h"
 #include "latin_square/vec_set.h"
 
 namespace qm::latin_square {
@@ -68,11 +68,61 @@ private:
     Evaluator evaluator_;
     std::vector<VecSet> row_conflict_grid_;
     std::vector<VecSet> row_nonconflict_grid_;
+    int rt{};
+    int accu{};
     Move find_move();
     void make_move(const Move &move);
     void set_row_conflict_grid_(const Solution &solution);
     [[nodiscard]] bool is_tabu(const Move &move, int conflict_num) const;
     void set_tabu(const Move &move);
+
+
+    // for debug
+    void check_solution_conflict_number() const {
+        // 精确计算冲突边数量
+        int row_conflict     = 0;
+        int column_conflict  = 0;
+        int total_conflict   = 0;
+        const auto &solution = current_solution_.solution;
+        const auto N         = solution.size();
+        // 计算行冲突
+        auto existed = std::make_unique<int[]>(N);
+        for (const auto &row: solution) {
+            std::fill_n(existed.get(), N, 0);
+            for (const auto val: row) {
+                if (existed[val] > 0) { row_conflict += existed[val]; }
+                existed[val]++;
+            }
+        }
+        // 计算列冲突
+        for (size_t j = 0; j < N; ++j) {
+            // 遍历列
+            std::fill_n(existed.get(), N, false);
+            for (size_t i = 0; i < N; ++i) {
+                // 遍历行
+                const int val = solution[i][j];
+                if (existed[val] > 0) { column_conflict += existed[val]; }
+                existed[val]++;
+            }
+        }
+        total_conflict = row_conflict + column_conflict;
+        if (total_conflict != current_solution_.total_conflict) {
+            throw std::runtime_error("冲突边个数计算错误");
+        }
+        auto &domain        = evaluator_.color_in_domain_table_.latin_square_.color_domain_;
+        int domain_conflict = 0;
+        for (auto i = 0; i < N; ++i) {
+            for (auto j = 0; j < N; ++j) {
+                auto val = solution[i][j];
+                if (domain(i, j).bits[val] == false) {
+                    domain_conflict++;
+                }
+            }
+        }
+        if (domain_conflict != current_solution_.domain_conflict) {
+            throw std::runtime_error("domain冲突个数计算错误");
+        }
+    }
 };
 }// namespace qm::latin_square
 
