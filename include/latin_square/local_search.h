@@ -69,8 +69,14 @@ private:
     Evaluator evaluator_;
     std::vector<VecSet> row_conflict_grid_;
     std::vector<VecSet> row_nonconflict_grid_;
+    VecSet conflict_nodes_;  // 所有冲突节点的集合（按节点ID存储）
     int rt{};
     int accu{};
+    
+    // 预分配数组用于存储候选移动
+    std::vector<Move> equal_nontabu_moves_;
+    std::vector<Move> equal_tabu_moves_;
+    
     Move find_move();
     void make_move(const Move &move);
     void set_row_conflict_grid_(const Solution &solution);

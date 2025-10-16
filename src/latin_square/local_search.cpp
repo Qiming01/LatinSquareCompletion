@@ -21,6 +21,13 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
     evaluator_        = Evaluator{latin_square, solution};
     accu              = 0;
     rt                = 10;
+    
+    const int N = latin_square.get_instance_size();
+    conflict_nodes_ = VecSet{N * N};
+    
+    // 预分配候选移动数组
+    equal_nontabu_moves_.reserve(2000);
+    equal_tabu_moves_.reserve(2000);
 
     // 初始化冲突节点集合（只在开始时执行一次）
     set_row_conflict_grid_(current_solution_);
@@ -51,15 +58,16 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
             return;
         }
         if (current_solution_ - best_solution_ > rt) {
-            std::cerr << "重启" << std::endl;
+            std::cerr << "Iteration: " << iteration_ << " 自适应重启" << std::endl;
             // 清空禁忌表
             tabu_list_.clear_tabu();
+            // 重置迭代计数器（关键优化！）
+            iteration_ = 0;
             // 使用历史最优解替换当前解
             current_solution_ = best_solution_;
             evaluator_        = Evaluator{latin_square, current_solution_};
             // 重启后需要重新计算冲突节点集合
             set_row_conflict_grid_(current_solution_);
-            // 扰动 todo
             // 如果重启阈值没有到达上限
             static constexpr int rtub  = 15;
             static constexpr int accub = 1000;
@@ -82,120 +90,63 @@ void LocalSearch::search(const LatinSquare &latin_square, const Solution &soluti
 }
 
 Move LocalSearch::find_move() {
-    // 遍历每一行
+    // 参考代码优化：只遍历冲突节点，与同行其他节点交换
     const int N = static_cast<int>(current_solution_.solution.size());
-    Move best_non_tabu_move{-1, -1, -1};
-    Move best_tabu_move{-1, -1, -1};
+    
+    equal_nontabu_moves_.clear();
+    equal_tabu_moves_.clear();
+    
     int best_non_tabu_move_delta1 = std::numeric_limits<int>::max();
     int best_non_tabu_move_delta2 = std::numeric_limits<int>::max();
     int best_tabu_move_delta1     = std::numeric_limits<int>::max();
     int best_tabu_move_delta2     = std::numeric_limits<int>::max();
-    int non_tabu_move_num         = 0;
-    int tabu_move_num             = 0;
 
+    // 关键优化：只遍历冲突节点（而不是遍历所有行）
     for (auto row = 0; row < N; ++row) {
-        // 冲突节点 - 冲突节点
-        for (auto i = 0; i < row_conflict_grid_[row].size(); ++i) {
-            const auto col1 = row_conflict_grid_[row][i];
-            for (auto j = i + 1; j < row_conflict_grid_[row].size(); ++j) {
-                const auto col2 = row_conflict_grid_[row][j];
-                Move move{row, col1, col2};
-
-                auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
-
-                if (is_tabu(move, current_solution_.total_conflict + move_delta1)) {
-                    // 禁忌移动
-                    if (move_delta1 < best_tabu_move_delta1) {
-                        // 一级评估函数更优，计算二级评估函数
-                        auto move_delta2      = evaluator_.evaluate_domain_delta(current_solution_, move);
-                        best_tabu_move_delta1 = move_delta1;
-                        best_tabu_move_delta2 = move_delta2;
-                        best_tabu_move        = move;
-                        tabu_move_num         = 1;
-                    } else if (move_delta1 == best_tabu_move_delta1) {
-                        // 一级评估函数相同，计算二级评估函数进行比较
-                        auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
-                        if (move_delta2 < best_tabu_move_delta2) {
-                            best_tabu_move_delta2 = move_delta2;
-                            best_tabu_move        = move;
-                            tabu_move_num         = 1;
-                        } else if (move_delta2 == best_tabu_move_delta2) {
-                            tabu_move_num++;
-                            if (randomInt(tabu_move_num) == 0) { best_tabu_move = move; }
-                        }
-                    }
-                } else {
-                    // 非禁忌移动
-                    if (move_delta1 < best_non_tabu_move_delta1) {
-                        // 一级评估函数更优，计算二级评估函数
-                        auto move_delta2          = evaluator_.evaluate_domain_delta(current_solution_, move);
-                        best_non_tabu_move_delta1 = move_delta1;
-                        best_non_tabu_move_delta2 = move_delta2;
-                        best_non_tabu_move        = move;
-                        non_tabu_move_num         = 1;
-                    } else if (move_delta1 == best_non_tabu_move_delta1) {
-                        // 一级评估函数相同，计算二级评估函数进行比较
-                        auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
-                        if (move_delta2 < best_non_tabu_move_delta2) {
-                            best_non_tabu_move_delta2 = move_delta2;
-                            best_non_tabu_move        = move;
-                            non_tabu_move_num         = 1;
-                        } else if (move_delta2 == best_non_tabu_move_delta2) {
-                            non_tabu_move_num++;
-                            if (randomInt(non_tabu_move_num) == 0) { best_non_tabu_move = move; }
-                        }
-                    }
-                }
-            }
-        }
-
-        // 冲突节点 - 非冲突节点
         for (const auto col1: row_conflict_grid_[row]) {
-            for (const auto col2: row_nonconflict_grid_[row]) {
+            // 与同行所有其他非固定节点交换
+            for (auto col2 = 0; col2 < N; ++col2) {
+                if (col2 == col1) continue;
+                // 跳过固定节点
+                if (evaluator_.color_in_domain_table_.latin_square_.is_fixed(row, col2)) continue;
+                
                 Move move{row, col1, col2};
-
                 auto move_delta1 = evaluator_.evaluate_conflict_delta(current_solution_, move);
 
                 if (is_tabu(move, current_solution_.total_conflict + move_delta1)) {
                     // 禁忌移动
                     if (move_delta1 < best_tabu_move_delta1) {
-                        // 一级评估函数更优，计算二级评估函数
                         auto move_delta2      = evaluator_.evaluate_domain_delta(current_solution_, move);
                         best_tabu_move_delta1 = move_delta1;
                         best_tabu_move_delta2 = move_delta2;
-                        best_tabu_move        = move;
-                        tabu_move_num         = 1;
+                        equal_tabu_moves_.clear();
+                        equal_tabu_moves_.push_back(move);
                     } else if (move_delta1 == best_tabu_move_delta1) {
-                        // 一级评估函数相同，计算二级评估函数进行比较
                         auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
                         if (move_delta2 < best_tabu_move_delta2) {
                             best_tabu_move_delta2 = move_delta2;
-                            best_tabu_move        = move;
-                            tabu_move_num         = 1;
+                            equal_tabu_moves_.clear();
+                            equal_tabu_moves_.push_back(move);
                         } else if (move_delta2 == best_tabu_move_delta2) {
-                            tabu_move_num++;
-                            if (randomInt(tabu_move_num) == 0) { best_tabu_move = move; }
+                            equal_tabu_moves_.push_back(move);
                         }
                     }
                 } else {
                     // 非禁忌移动
                     if (move_delta1 < best_non_tabu_move_delta1) {
-                        // 一级评估函数更优，计算二级评估函数
                         auto move_delta2          = evaluator_.evaluate_domain_delta(current_solution_, move);
                         best_non_tabu_move_delta1 = move_delta1;
                         best_non_tabu_move_delta2 = move_delta2;
-                        best_non_tabu_move        = move;
-                        non_tabu_move_num         = 1;
+                        equal_nontabu_moves_.clear();
+                        equal_nontabu_moves_.push_back(move);
                     } else if (move_delta1 == best_non_tabu_move_delta1) {
-                        // 一级评估函数相同，计算二级评估函数进行比较
                         auto move_delta2 = evaluator_.evaluate_domain_delta(current_solution_, move);
                         if (move_delta2 < best_non_tabu_move_delta2) {
                             best_non_tabu_move_delta2 = move_delta2;
-                            best_non_tabu_move        = move;
-                            non_tabu_move_num         = 1;
+                            equal_nontabu_moves_.clear();
+                            equal_nontabu_moves_.push_back(move);
                         } else if (move_delta2 == best_non_tabu_move_delta2) {
-                            non_tabu_move_num++;
-                            if (randomInt(non_tabu_move_num) == 0) { best_non_tabu_move = move; }
+                            equal_nontabu_moves_.push_back(move);
                         }
                     }
                 }
@@ -204,17 +155,20 @@ Move LocalSearch::find_move() {
     }
 
     // 选择最佳移动：特赦规则 - 如果禁忌移动比历史最优解更好，则选择禁忌移动
-    if (current_solution_.total_conflict + best_tabu_move_delta1 < best_solution_.total_conflict &&
-        best_tabu_move_delta1 < best_non_tabu_move_delta1) {
-        return best_tabu_move;
+    if (best_tabu_move_delta1 < best_non_tabu_move_delta1 && 
+        current_solution_.total_conflict + best_tabu_move_delta1 < best_solution_.total_conflict) {
+        if (equal_tabu_moves_.empty()) {
+            throw std::runtime_error("No valid tabu move found");
+        }
+        return equal_tabu_moves_[randomInt(equal_tabu_moves_.size())];
     }
 
     // 检查是否找到有效的移动
-    if (best_non_tabu_move.row_id == -1) {
+    if (equal_nontabu_moves_.empty()) {
         throw std::runtime_error("No valid move found in find_move()");
     }
 
-    return best_non_tabu_move;
+    return equal_nontabu_moves_[randomInt(equal_nontabu_moves_.size())];
 }
 
 void LocalSearch::make_move(const Move &move) {
@@ -309,15 +263,16 @@ void LocalSearch::set_tabu(const Move &move) {
     const auto color2 = current_solution_.solution[move.row_id][move.col2];
     // 禁忌当前的颜色
     constexpr double alpha = 0.4;
-    // 确保禁忌期至少为10，避免冲突数过小时禁忌期过短
-    const auto base_tenure                     = static_cast<unsigned long long>(alpha * current_solution_.total_conflict);
+    const auto base_tenure = static_cast<unsigned long long>(alpha * current_solution_.total_conflict);
     const auto target_iteration_without_random = base_tenure + iteration_;
 
-    // 只有当操作单元是冲突节点时，才将其加入禁忌表
-    if (evaluator_.is_conflict_grid(color1, move.col1))
-        tabu_list_.make_tabu(move.row_id, move.col1, color1, target_iteration_without_random + randomInt(10));
-    if (evaluator_.is_conflict_grid(color2, move.col2))
-        tabu_list_.make_tabu(move.row_id, move.col2, color2, target_iteration_without_random + randomInt(10));
+    // 参考代码策略：col1总是冲突节点，总是设置禁忌
+    tabu_list_.make_tabu(move.row_id, move.col1, color1, target_iteration_without_random + randomIntBetween(1, 10));
+    
+    // col2只有在是冲突节点时才设置禁忌
+    if (evaluator_.is_conflict_grid(color2, move.col2)) {
+        tabu_list_.make_tabu(move.row_id, move.col2, color2, target_iteration_without_random + randomIntBetween(1, 10));
+    }
 }
 
 void LocalSearch::verify_conflict_grid() const {
