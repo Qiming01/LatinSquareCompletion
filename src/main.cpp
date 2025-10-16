@@ -16,8 +16,10 @@
 using namespace qm::latin_square;
 
 void print_usage(const char *program_name) {
-    std::cerr << "用法: " << program_name << " <时间限制(秒)> <随机种子> <输入文件 >输出文件" << std::endl;
+    std::cerr << "用法: " << program_name << " <时间限制(秒)> <随机种子> [线程数] <输入文件 >输出文件" << std::endl;
     std::cerr << "示例: " << program_name << " 600 123456 <../data/LSC.n50f750.00.txt >sln.LSC.n50f750.00.txt" << std::endl;
+    std::cerr << "      " << program_name << " 600 123456 4 <../data/LSC.n50f750.00.txt >sln.LSC.n50f750.00.txt" << std::endl;
+    std::cerr << "线程数为可选参数，默认使用所有可用的CPU核心" << std::endl;
 }
 
 // 验证解的冲突数
@@ -64,7 +66,7 @@ int verify_solution_conflicts(const Solution &solution) {
 
 int main(int argc, char *argv[]) {
     // 检查命令行参数
-    if (argc != 3) {
+    if (argc != 3 && argc != 4) {
         std::cerr << "错误: 参数数量不正确" << std::endl;
         print_usage(argv[0]);
         return 1;
@@ -73,10 +75,14 @@ int main(int argc, char *argv[]) {
     // 解析命令行参数
     int time_limit_seconds   = 0;
     unsigned int random_seed = 0;
+    size_t num_threads       = 0; // 0 表示使用默认值（所有核心）
 
     try {
         time_limit_seconds = std::stoi(argv[1]);
         random_seed        = static_cast<unsigned int>(std::stoul(argv[2]));
+        if (argc == 4) {
+            num_threads = static_cast<size_t>(std::stoul(argv[3]));
+        }
     } catch (const std::exception &e) {
         std::cerr << "错误: 参数解析失败 - " << e.what() << std::endl;
         print_usage(argv[0]);
@@ -90,6 +96,11 @@ int main(int argc, char *argv[]) {
 
     std::cerr << "时间限制: " << time_limit_seconds << " 秒" << std::endl;
     std::cerr << "随机种子: " << random_seed << std::endl;
+    if (num_threads == 0) {
+        std::cerr << "线程数: " << std::thread::hardware_concurrency() << " (自动检测)" << std::endl;
+    } else {
+        std::cerr << "线程数: " << num_threads << std::endl;
+    }
 
     // 加速输入输出
     std::ios::sync_with_stdio(false);
@@ -128,8 +139,12 @@ int main(int argc, char *argv[]) {
     // 计算最大迭代次数（设置一个足够大的值，实际由时间限制控制）
     unsigned long long max_iterations = 100000000000ULL;
 
-    // 执行搜索（传递时间限制）
-    local_search.search(latin_square, solution, max_iterations, time_limit_seconds);
+    // 执行搜索（根据线程数选择单线程或并行搜索）
+    if (num_threads <= 1) {
+        local_search.search(latin_square, solution, max_iterations, time_limit_seconds);
+    } else {
+        local_search.parallel_search(latin_square, solution, num_threads, max_iterations, time_limit_seconds);
+    }
 
     // 计算实际运行时间
     auto end_time                         = std::chrono::high_resolution_clock::now();

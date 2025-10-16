@@ -9,6 +9,7 @@
 #include "latin_square/latin_square.h"
 #include "latin_square/move.h"
 #include "latin_square/vec_set.h"
+#include "utils/ThreadPool.h"
 
 namespace qm::latin_square {
 
@@ -58,7 +59,14 @@ private:
 
 class LocalSearch {
 public:
+    LocalSearch() = default;
+    
+    // 单线程搜索
     void search(const LatinSquare &latin_square, const Solution &solution, unsigned long long max_iteration = 0, int time_limit_seconds = 0);
+    
+    // 多线程并行搜索（多次重启）
+    void parallel_search(const LatinSquare &latin_square, const Solution &solution, 
+                        size_t num_threads, unsigned long long max_iteration = 0, int time_limit_seconds = 0);
     
     Solution best_solution_;  // 公开最优解，供外部访问
 

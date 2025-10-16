@@ -4,10 +4,13 @@
 #include "latin_square/local_search.h"
 
 #include "utils/RandomGenerator.h"
+#include "utils/ThreadPool.h"
 
 #include <chrono>
 #include <iomanip>
 #include <limits>
+#include <atomic>
+#include <mutex>
 
 namespace qm::latin_square {
 void LocalSearch::search(const LatinSquare &latin_square, const Solution &solution, const unsigned long long max_iteration, const int time_limit_seconds) {
@@ -318,4 +321,100 @@ void LocalSearch::verify_conflict_grid() const {
         }
     }
 }
+
+void LocalSearch::parallel_search(const LatinSquare &latin_square, const Solution &solution,
+                                  size_t num_threads, unsigned long long max_iteration, int time_limit_seconds) {
+    if (num_threads <= 1) {
+        // 单线程直接调用原始搜索
+        search(latin_square, solution, max_iteration, time_limit_seconds);
+        return;
+    }
+
+    std::cerr << "启动并行搜索，使用 " << num_threads << " 个线程" << std::endl;
+    
+    auto start_time = std::chrono::high_resolution_clock::now();
+    
+    // 共享的最优解和互斥锁
+    std::mutex best_solution_mutex;
+    Solution global_best_solution = solution;
+    std::atomic<bool> found_optimal{false};
+    
+    // 创建线程池
+    utils::ThreadPool thread_pool(num_threads);
+    std::vector<std::future<Solution>> futures;
+    
+    // 为每个线程分配时间
+    const int time_per_thread = time_limit_seconds;
+    
+    // 启动多个独立的搜索线程
+    for (size_t tid = 0; tid < num_threads; ++tid) {
+        futures.push_back(thread_pool.enqueue([tid, time_per_thread, max_iteration, &latin_square, 
+                                               &best_solution_mutex, &global_best_solution, &found_optimal]() -> Solution {
+            // 每个线程使用不同的随机种子
+            unsigned int thread_seed = static_cast<unsigned int>(
+                std::chrono::high_resolution_clock::now().time_since_epoch().count() + tid * 1000);
+            qm::setRandomSeed(thread_seed);
+            
+            std::cerr << "线程 " << tid << " 开始搜索，种子: " << thread_seed << std::endl;
+            
+            // 创建线程局部的搜索对象
+            LocalSearch local_search;
+            
+            // 创建 LatinSquare 的副本用于生成初始解（因为 generate_init_solution 不是 const）
+            LatinSquare local_latin_square = latin_square;
+            
+            // 生成不同的初始解（通过不同的随机种子）
+            Solution thread_solution = local_latin_square.generate_init_solution();
+            
+            // 执行搜索
+            try {
+                local_search.search(latin_square, thread_solution, max_iteration, time_per_thread);
+            } catch (const std::exception &e) {
+                std::cerr << "线程 " << tid << " 搜索异常: " << e.what() << std::endl;
+            }
+            
+            // 更新全局最优解
+            {
+                std::lock_guard<std::mutex> lock(best_solution_mutex);
+                if (local_search.best_solution_ < global_best_solution) {
+                    global_best_solution = local_search.best_solution_;
+                    std::cerr << "线程 " << tid << " 找到更好的解，冲突数: " 
+                             << global_best_solution.total_conflict << std::endl;
+                    
+                    if (global_best_solution.total_conflict == 0) {
+                        found_optimal = true;
+                    }
+                }
+            }
+            
+            return local_search.best_solution_;
+        }));
+    }
+    
+    // 等待所有线程完成
+    std::vector<Solution> thread_solutions;
+    for (auto &future : futures) {
+        try {
+            thread_solutions.push_back(future.get());
+        } catch (const std::exception &e) {
+            std::cerr << "获取线程结果异常: " << e.what() << std::endl;
+        }
+    }
+    
+    // 选择最优解
+    best_solution_ = global_best_solution;
+    for (const auto &sol : thread_solutions) {
+        if (sol < best_solution_) {
+            best_solution_ = sol;
+        }
+    }
+    
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end_time - start_time;
+    
+    std::cerr << "并行搜索完成，总时间: " << std::fixed << std::setprecision(3) 
+             << elapsed.count() << " s" << std::endl;
+    std::cerr << "最终冲突数: " << best_solution_.total_conflict << std::endl;
+}
+
 }// namespace qm::latin_square
